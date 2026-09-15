@@ -164,11 +164,110 @@ def preprocessar_dados(df):
 
 Após esse processo, a base passou para 78.228 registros e 15 colunas. Essa etapa deixa os dados prontos para calcular as métricas estatísticas exigidas no projeto.
 
-## Parte 3 - Medidas de centralização
+## Parte 3 - Estatísticas descritivas e visualizações gerais
 
+Após o pré-processamento, foi realizada uma análise descritiva geral da idade dos animais. Essa etapa tem como objetivo resumir o comportamento da variável `age_years`, que representa a idade dos animais em anos no momento do desfecho.
 
+O código calcula medidas de centralização, posição e dispersão, atendendo aos requisitos estatísticos iniciais do projeto:
 
-Depois de implementar, o relatório deverá explicar o que esses valores indicam sobre o perfil dos animais da base.
+```python
+def analisar_estatisticas_gerais(df):
+    print("\n" + "=" * 80)
+    print("3. ESTATISTICAS DESCRITIVAS E VISUALIZACOES GERAIS")
+    print("=" * 80)
+
+    OUTPUT_GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_TABLES_DIR.mkdir(parents=True, exist_ok=True)
+
+    idade = df["age_years"]
+
+    estatisticas = pd.DataFrame(
+        {
+            "metrica": [
+                "media",
+                "mediana",
+                "moda",
+                "q1",
+                "q2",
+                "q3",
+                "percentil_10",
+                "percentil_90",
+                "variancia",
+                "desvio_padrao",
+                "amplitude",
+            ],
+            "valor": [
+                idade.mean(),
+                idade.median(),
+                idade.mode().iloc[0],
+                idade.quantile(0.25),
+                idade.quantile(0.50),
+                idade.quantile(0.75),
+                idade.quantile(0.10),
+                idade.quantile(0.90),
+                idade.var(),
+                idade.std(),
+                idade.max() - idade.min(),
+            ],
+        }
+    )
+
+    print("\nEstatisticas gerais da idade em anos:")
+    print(estatisticas)
+
+    estatisticas.to_csv(
+        OUTPUT_TABLES_DIR / "estatisticas_gerais_idade.csv", index=False
+    )
+```
+
+Os resultados obtidos foram:
+
+| Métrica | Valor |
+|---|---:|
+| Média | 2,13 anos |
+| Mediana | 1,00 ano |
+| Moda | 1,00 ano |
+| Q1 | 0,25 ano |
+| Q2 | 1,00 ano |
+| Q3 | 3,00 anos |
+| Percentil 10 | 0,08 ano |
+| Percentil 90 | 6,00 anos |
+| Variância | 8,39 |
+| Desvio padrão | 2,90 anos |
+| Amplitude | 25,00 anos |
+
+A média de idade dos animais é de aproximadamente 2,13 anos, enquanto a mediana e a moda são iguais a 1 ano. Isso indica que muitos animais deixam o abrigo ainda jovens. Como a média é maior do que a mediana, a distribuição apresenta influência de animais mais velhos, que puxam a média para cima.
+
+Os quartis mostram que 25% dos animais tinham até aproximadamente 0,25 ano, metade tinha até 1 ano e 75% tinham até 3 anos no momento do desfecho. O percentil 90 indica que 90% dos animais tinham até 6 anos. A amplitude de 25 anos e o desvio padrão de 2,90 anos mostram que existe variação relevante na idade dos animais, embora a maior parte dos registros esteja concentrada em idades mais baixas.
+
+Além da tabela estatística, foram geradas visualizações gerais para apoiar a interpretação da base:
+
+```python
+    plt.figure(figsize=(8, 5))
+    sns.countplot(data=df, x="animal_type", order=df["animal_type"].value_counts().index)
+    plt.title("Distribuicao por tipo de animal")
+    plt.xlabel("Tipo de animal")
+    plt.ylabel("Quantidade de registros")
+    salvar_grafico("distribuicao_tipo_animal.png")
+
+    plt.figure(figsize=(10, 5))
+    ordem_desfechos = df["outcome_type"].value_counts().index
+    sns.countplot(data=df, x="outcome_type", order=ordem_desfechos)
+    plt.title("Distribuicao por tipo de desfecho")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Quantidade de registros")
+    plt.xticks(rotation=45, ha="right")
+    salvar_grafico("distribuicao_tipo_desfecho.png")
+
+    plt.figure(figsize=(8, 5))
+    sns.histplot(data=df, x="age_years", bins=30)
+    plt.title("Distribuicao da idade dos animais")
+    plt.xlabel("Idade em anos")
+    plt.ylabel("Quantidade de registros")
+    salvar_grafico("distribuicao_idade.png")
+```
+
+Os gráficos gerados foram salvos na pasta `outputs/graficos`, e a tabela com as estatísticas gerais foi salva em `outputs/tabelas/estatisticas_gerais_idade.csv`. Essa etapa cria uma visão inicial da base e prepara o projeto para responder às perguntas investigativas nas próximas partes.
 
 ## Parte 4 - Medidas de posição
 

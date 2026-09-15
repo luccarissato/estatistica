@@ -1,26 +1,27 @@
 from pathlib import Path
+import os
 import re
 
-import pandas as pd
-
 BASE_DIR = Path(__file__).resolve().parent.parent
+os.environ.setdefault("MPLCONFIGDIR", str(BASE_DIR / ".matplotlib"))
+
+import pandas as pd
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import seaborn as sns
+
 DATA_PATH = BASE_DIR / "data" / "aac_shelter_outcomes.csv"
 OUTPUT_GRAPHS_DIR = BASE_DIR / "outputs" / "graficos"
 OUTPUT_TABLES_DIR = BASE_DIR / "outputs" / "tabelas"
 
 
 def carregar_base():
-    # Carrega a base principal do projeto: registros de saida dos animais
-    # do Austin Animal Center.
     return pd.read_csv(DATA_PATH)
 
 
 def entender_base(df):
-    # Parte 1 - Preparacao e entendimento da base.
-    # Esta etapa confirma o tamanho real do dataset, as colunas disponiveis,
-    # os tipos de dados e as categorias mais importantes para as perguntas
-    # investigativas do projeto.
-
     print("=" * 80)
     print("1. PREPARACAO E ENTENDIMENTO DA BASE")
     print("=" * 80)
@@ -45,9 +46,6 @@ def entender_base(df):
 
 
 def converter_idade_para_dias(idade):
-    # Converte valores como "2 weeks", "1 year" e "5 months" para dias.
-    # A conversao para uma unidade numerica comum e necessaria para calcular
-    # media, mediana, quartis, variancia, desvio padrao e correlacao.
     if pd.isna(idade):
         return pd.NA
 
@@ -72,10 +70,6 @@ def converter_idade_para_dias(idade):
 
 
 def preprocessar_dados(df):
-    # Parte 2 - Pre-processamento dos dados.
-    # Esta etapa prepara a base para responder as perguntas investigativas,
-    # tratando valores ausentes, duplicados e tipos de dados.
-
     print("\n" + "=" * 80)
     print("2. PRE-PROCESSAMENTO DOS DADOS")
     print("=" * 80)
@@ -89,11 +83,8 @@ def preprocessar_dados(df):
     print("\nLinhas completamente duplicadas encontradas:")
     print(duplicados)
 
-    # Remove apenas linhas completamente duplicadas, pois animal_id repetido
-    # pode representar um novo registro de saida do mesmo animal.
     df_processado = df_processado.drop_duplicates().copy()
 
-    # Converte colunas de data para permitir analises temporais posteriores.
     df_processado["date_of_birth"] = pd.to_datetime(
         df_processado["date_of_birth"], errors="coerce"
     )
@@ -104,7 +95,6 @@ def preprocessar_dados(df):
         df_processado["monthyear"], errors="coerce"
     )
 
-    # Cria variaveis numericas de idade para viabilizar as analises estatisticas.
     df_processado["age_days"] = df_processado["age_upon_outcome"].apply(
         converter_idade_para_dias
     )
@@ -113,12 +103,8 @@ def preprocessar_dados(df):
     )
     df_processado["age_years"] = df_processado["age_days"] / 365
 
-    # O ano do desfecho sera util em etapas futuras, inclusive para comparar
-    # variaveis numericas em escalas diferentes na padronizacao.
     df_processado["outcome_year"] = df_processado["datetime"].dt.year
 
-    # Remove registros sem informacoes essenciais para as perguntas do projeto:
-    # idade numerica e tipo de desfecho.
     df_processado = df_processado.dropna(subset=["age_days", "outcome_type"]).copy()
 
     print("\nValores ausentes depois do tratamento essencial:")
@@ -133,10 +119,97 @@ def preprocessar_dados(df):
     return df_processado
 
 
+def salvar_grafico(nome_arquivo):
+    plt.tight_layout()
+    plt.savefig(OUTPUT_GRAPHS_DIR / nome_arquivo, dpi=300)
+    plt.close()
+
+
+def analisar_estatisticas_gerais(df):
+    print("\n" + "=" * 80)
+    print("3. ESTATISTICAS DESCRITIVAS E VISUALIZACOES GERAIS")
+    print("=" * 80)
+
+    OUTPUT_GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
+    OUTPUT_TABLES_DIR.mkdir(parents=True, exist_ok=True)
+
+    idade = df["age_years"]
+
+    estatisticas = pd.DataFrame(
+        {
+            "metrica": [
+                "media",
+                "mediana",
+                "moda",
+                "q1",
+                "q2",
+                "q3",
+                "percentil_10",
+                "percentil_90",
+                "variancia",
+                "desvio_padrao",
+                "amplitude",
+            ],
+            "valor": [
+                idade.mean(),
+                idade.median(),
+                idade.mode().iloc[0],
+                idade.quantile(0.25),
+                idade.quantile(0.50),
+                idade.quantile(0.75),
+                idade.quantile(0.10),
+                idade.quantile(0.90),
+                idade.var(),
+                idade.std(),
+                idade.max() - idade.min(),
+            ],
+        }
+    )
+
+    print("\nEstatisticas gerais da idade em anos:")
+    print(estatisticas)
+
+    estatisticas.to_csv(
+        OUTPUT_TABLES_DIR / "estatisticas_gerais_idade.csv", index=False
+    )
+
+    plt.figure(figsize=(8, 5))
+    sns.countplot(data=df, x="animal_type", order=df["animal_type"].value_counts().index)
+    plt.title("Distribuicao por tipo de animal")
+    plt.xlabel("Tipo de animal")
+    plt.ylabel("Quantidade de registros")
+    salvar_grafico("distribuicao_tipo_animal.png")
+
+    plt.figure(figsize=(10, 5))
+    ordem_desfechos = df["outcome_type"].value_counts().index
+    sns.countplot(data=df, x="outcome_type", order=ordem_desfechos)
+    plt.title("Distribuicao por tipo de desfecho")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Quantidade de registros")
+    plt.xticks(rotation=45, ha="right")
+    salvar_grafico("distribuicao_tipo_desfecho.png")
+
+    plt.figure(figsize=(8, 5))
+    sns.histplot(data=df, x="age_years", bins=30)
+    plt.title("Distribuicao da idade dos animais")
+    plt.xlabel("Idade em anos")
+    plt.ylabel("Quantidade de registros")
+    salvar_grafico("distribuicao_idade.png")
+
+    print("\nArquivos gerados:")
+    print(OUTPUT_TABLES_DIR / "estatisticas_gerais_idade.csv")
+    print(OUTPUT_GRAPHS_DIR / "distribuicao_tipo_animal.png")
+    print(OUTPUT_GRAPHS_DIR / "distribuicao_tipo_desfecho.png")
+    print(OUTPUT_GRAPHS_DIR / "distribuicao_idade.png")
+
+    return estatisticas
+
+
 def main():
     df = carregar_base()
     entender_base(df)
     df_processado = preprocessar_dados(df)
+    analisar_estatisticas_gerais(df_processado)
 
 
 if __name__ == "__main__":
