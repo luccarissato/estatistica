@@ -205,11 +205,53 @@ def analisar_estatisticas_gerais(df):
     return estatisticas
 
 
+def analisar_adocao_por_especie(df):
+    print("\n" + "=" * 80)
+    print("4. PERGUNTA 1: PROPORCAO DE ADOCOES POR ESPECIE")
+    print("=" * 80)
+
+    tabela = (
+        df.groupby("animal_type")
+        .agg(
+            total_registros=("animal_type", "size"),
+            total_adocoes=("outcome_type", lambda coluna: (coluna == "Adoption").sum()),
+        )
+        .reset_index()
+    )
+    tabela["proporcao_adocao"] = (
+        tabela["total_adocoes"] / tabela["total_registros"]
+    )
+    tabela["percentual_adocao"] = tabela["proporcao_adocao"] * 100
+    tabela = tabela.sort_values("percentual_adocao", ascending=False)
+
+    print("\nProporcao de adocoes por especie:")
+    print(tabela)
+
+    tabela.to_csv(
+        OUTPUT_TABLES_DIR / "proporcao_adocao_por_especie.csv", index=False
+    )
+
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=tabela, x="animal_type", y="percentual_adocao")
+    plt.title("Proporcao de adocoes por especie")
+    plt.xlabel("Tipo de animal")
+    plt.ylabel("Adocoes (%)")
+    salvar_grafico("proporcao_adocao_por_especie.png")
+
+    comparacao_caes_gatos = tabela[tabela["animal_type"].isin(["Dog", "Cat"])]
+
+    print("\nComparacao entre caes e gatos:")
+    print(comparacao_caes_gatos)
+
+    return tabela
+
+
 def main():
     df = carregar_base()
     entender_base(df)
     df_processado = preprocessar_dados(df)
     analisar_estatisticas_gerais(df_processado)
+    analisar_adocao_por_especie(df_processado)
 
 
 if __name__ == "__main__":

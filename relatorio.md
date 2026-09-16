@@ -269,25 +269,85 @@ Além da tabela estatística, foram geradas visualizações gerais para apoiar a
 
 Os gráficos gerados foram salvos na pasta `outputs/graficos`, e a tabela com as estatísticas gerais foi salva em `outputs/tabelas/estatisticas_gerais_idade.csv`. Essa etapa cria uma visão inicial da base e prepara o projeto para responder às perguntas investigativas nas próximas partes.
 
-## Parte 4 - Medidas de posição
+## Parte 4 - Pergunta 1: Proporção de adoções por espécie
+
+Nesta etapa, a análise busca responder à primeira pergunta investigativa: qual espécie apresenta maior proporção de adoções entre seus respectivos desfechos?
+
+A hipótese associada a essa pergunta é que a proporção de adoções difere entre cães e gatos, indicando que o tipo de animal pode estar associado ao resultado de saída do abrigo.
+
+Para responder a essa pergunta, foi calculado o total de registros por espécie, o total de registros cujo desfecho foi `Adoption` e a proporção de adoções dentro de cada tipo de animal. A análise foi feita com proporções, e não apenas com quantidades absolutas, porque cada espécie possui um número diferente de registros na base.
+
+```python
+def analisar_adocao_por_especie(df):
+    print("\n" + "=" * 80)
+    print("4. PERGUNTA 1: PROPORCAO DE ADOCOES POR ESPECIE")
+    print("=" * 80)
+
+    tabela = (
+        df.groupby("animal_type")
+        .agg(
+            total_registros=("animal_type", "size"),
+            total_adocoes=("outcome_type", lambda coluna: (coluna == "Adoption").sum()),
+        )
+        .reset_index()
+    )
+    tabela["proporcao_adocao"] = (
+        tabela["total_adocoes"] / tabela["total_registros"]
+    )
+    tabela["percentual_adocao"] = tabela["proporcao_adocao"] * 100
+    tabela = tabela.sort_values("percentual_adocao", ascending=False)
+
+    print("\nProporcao de adocoes por especie:")
+    print(tabela)
+
+    tabela.to_csv(
+        OUTPUT_TABLES_DIR / "proporcao_adocao_por_especie.csv", index=False
+    )
+
+    plt.figure(figsize=(8, 5))
+    sns.barplot(data=tabela, x="animal_type", y="percentual_adocao")
+    plt.title("Proporcao de adocoes por especie")
+    plt.xlabel("Tipo de animal")
+    plt.ylabel("Adocoes (%)")
+    salvar_grafico("proporcao_adocao_por_especie.png")
+
+    comparacao_caes_gatos = tabela[tabela["animal_type"].isin(["Dog", "Cat"])]
+
+    print("\nComparacao entre caes e gatos:")
+    print(comparacao_caes_gatos)
+
+    return tabela
+```
+
+Os resultados obtidos foram:
+
+| Tipo de animal | Total de registros | Total de adoções | Percentual de adoção |
+|---|---:|---:|---:|
+| Dog | 44.233 | 20.051 | 45,33% |
+| Cat | 29.411 | 12.729 | 43,28% |
+| Bird | 333 | 114 | 34,23% |
+| Livestock | 9 | 2 | 22,22% |
+| Other | 4.242 | 212 | 5,00% |
+
+A espécie com maior proporção de adoções foi `Dog`, com aproximadamente 45,33% dos registros resultando em adoção. Em seguida aparecem os gatos, com aproximadamente 43,28%. Embora cães também tenham maior quantidade absoluta de adoções, a comparação proporcional mostra que a diferença permanece mesmo considerando o total de registros de cada espécie.
+
+Considerando especificamente cães e gatos, a hipótese foi sustentada pelos dados, pois as proporções de adoção não são iguais. A diferença observada foi de aproximadamente 2,05 pontos percentuais, com cães apresentando uma proporção de adoção ligeiramente maior do que gatos. Portanto, nesta base, o tipo de animal parece estar associado ao resultado de saída do abrigo quando analisamos o desfecho de adoção.
+
+O gráfico `proporcao_adocao_por_especie.png`, salvo em `outputs/graficos`, mostra visualmente essa comparação entre os percentuais de adoção por espécie. A tabela completa foi salva em `outputs/tabelas/proporcao_adocao_por_especie.csv`.
+
+## Parte 5 - Pergunta 2: Idade de adotados vs transferidos
 
 
 
-Depois de implementar, o relatório deverá interpretar os quartis e relacioná-los ao comportamento geral da base.
+Depois de implementar, o relatório deverá comparar a idade dos animais adotados e transferidos, verificando diferenças de média, mediana, quartis, variância, desvio padrão e amplitude.
 
-## Parte 5 - Medidas de dispersão
-
-
-
-Depois de implementar, o relatório deverá explicar se existe grande variação na idade dos animais e o que isso significa para a análise.
-
-## Parte 6 - Correlação
+## Parte 6 - Pergunta 3: Variabilidade de idade por desfecho
 
 
 
-Depois de implementar, o relatório deverá explicar se existe relação estatística relevante entre as variáveis comparadas.
+Depois de implementar, o relatório deverá identificar quais grupos de desfecho apresentam maior variabilidade de idade e maior presença de valores extremos.
 
-## Parte 7 - Padronização, visualização e conclusões
+## Parte 7 - Correlação, padronização e conclusão
 
 
-Depois de implementar, o relatório deverá apresentar os gráficos, interpretar os resultados e responder diretamente às perguntas definidas na introdução.
+Depois de implementar, o relatório deverá apresentar a correlação entre idade e ocorrência de adoção, a padronização de variáveis numéricas em escalas diferentes e a conclusão geral validando ou rejeitando as hipóteses.
