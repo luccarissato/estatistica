@@ -431,9 +431,95 @@ Os gráficos `boxplot_idade_adoption_transfer.png` e `histograma_idade_adoption_
 
 ## Parte 6 - Pergunta 3: Variabilidade de idade por desfecho
 
+Nesta etapa, a análise busca responder à terceira pergunta investigativa: quais grupos de desfecho apresentam maior variabilidade de idade e maior presença de valores extremos?
+
+A hipótese associada a essa pergunta é que a variabilidade da idade não é igual entre os grupos de desfecho, sendo possível que alguns apresentem maior dispersão e maior frequência de animais com idades extremas.
+
+Para responder a essa pergunta, a base foi agrupada por `outcome_type`. Em seguida, foram calculadas medidas de dispersão da idade, como variância, desvio padrão, amplitude e intervalo interquartil. Também foi calculada a quantidade de outliers em cada grupo usando o critério de 1,5 vezes o intervalo interquartil.
+
+```python
+def contar_outliers(serie):
+    q1 = serie.quantile(0.25)
+    q3 = serie.quantile(0.75)
+    iqr = q3 - q1
+    limite_inferior = q1 - 1.5 * iqr
+    limite_superior = q3 + 1.5 * iqr
+
+    return ((serie < limite_inferior) | (serie > limite_superior)).sum()
 
 
-Depois de implementar, o relatório deverá identificar quais grupos de desfecho apresentam maior variabilidade de idade e maior presença de valores extremos.
+def analisar_variabilidade_por_desfecho(df):
+    print("\n" + "=" * 80)
+    print("6. PERGUNTA 3: VARIABILIDADE DE IDADE POR DESFECHO")
+    print("=" * 80)
+
+    estatisticas = (
+        df.groupby("outcome_type")["age_years"]
+        .agg(
+            quantidade="count",
+            media="mean",
+            mediana="median",
+            q1=lambda coluna: coluna.quantile(0.25),
+            q3=lambda coluna: coluna.quantile(0.75),
+            variancia="var",
+            desvio_padrao="std",
+            minimo="min",
+            maximo="max",
+            outliers=contar_outliers,
+        )
+        .reset_index()
+    )
+    estatisticas["amplitude"] = estatisticas["maximo"] - estatisticas["minimo"]
+    estatisticas["iqr"] = estatisticas["q3"] - estatisticas["q1"]
+    estatisticas["percentual_outliers"] = (
+        estatisticas["outliers"] / estatisticas["quantidade"] * 100
+    )
+    estatisticas = estatisticas.sort_values("desvio_padrao", ascending=False)
+```
+
+Os resultados obtidos foram:
+
+| Desfecho | Quantidade | Mediana | Variância | Desvio padrão | Amplitude | IQR | Outliers |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Return to Owner | 14.354 | 3,00 | 12,70 | 3,56 | 22,00 | 5,00 | 345 |
+| Euthanasia | 6.075 | 1,00 | 11,20 | 3,35 | 22,00 | 2,34 | 673 |
+| Rto-Adopt | 150 | 2,00 | 10,34 | 3,22 | 15,84 | 3,75 | 8 |
+| Missing | 46 | 0,45 | 8,31 | 2,88 | 14,96 | 1,50 | 4 |
+| Died | 680 | 0,16 | 7,91 | 2,81 | 16,00 | 0,92 | 103 |
+| Transfer | 23.493 | 0,74 | 6,17 | 2,48 | 25,00 | 1,92 | 2.405 |
+| Adoption | 33.108 | 0,82 | 5,75 | 2,40 | 18,00 | 1,84 | 3.558 |
+| Disposal | 306 | 1,00 | 1,30 | 1,14 | 12,00 | 0,00 | 137 |
+| Relocate | 16 | 0,79 | 0,36 | 0,60 | 1,92 | 0,51 | 3 |
+
+O grupo com maior variabilidade segundo o desvio padrão foi `Return to Owner`, com desvio padrão de 3,56 anos e variância de 12,70. Esse mesmo grupo também apresentou o maior intervalo interquartil, com IQR de 5 anos, indicando uma distribuição mais espalhada entre o primeiro e o terceiro quartil.
+
+O grupo `Transfer` apresentou a maior amplitude, com idades variando de 0 a 25 anos. Isso mostra que, embora seu desvio padrão não seja o maior, esse grupo contém a maior diferença entre idade mínima e máxima.
+
+Em relação à presença de valores extremos, o maior número absoluto de outliers apareceu em `Adoption`, com 3.558 registros identificados como extremos pelo critério de 1,5 vezes o IQR. Em seguida aparece `Transfer`, com 2.405 outliers. Esses números absolutos são influenciados pelo fato de esses grupos também concentrarem grande quantidade de registros. Já proporcionalmente, `Disposal` apresentou percentual elevado de outliers, mas esse resultado deve ser interpretado com cuidado porque esse desfecho possui uma quantidade bem menor de registros.
+
+Também foram gerados gráficos para visualizar a dispersão:
+
+```python
+    plt.figure(figsize=(11, 6))
+    sns.boxplot(data=df, x="outcome_type", y="age_years", order=ordem_desfechos)
+    plt.title("Variabilidade da idade por tipo de desfecho")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Idade em anos")
+    plt.xticks(rotation=45, ha="right")
+    salvar_grafico("boxplot_idade_por_desfecho.png")
+
+    plt.figure(figsize=(10, 5))
+    sns.barplot(data=estatisticas, x="outcome_type", y="desvio_padrao")
+    plt.title("Desvio padrao da idade por tipo de desfecho")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Desvio padrao da idade em anos")
+    plt.xticks(rotation=45, ha="right")
+    salvar_grafico("desvio_padrao_idade_por_desfecho.png")
+```
+
+A hipótese foi sustentada pelos dados. A variabilidade da idade não é igual entre os grupos de desfecho. Alguns grupos, como `Return to Owner`, `Euthanasia` e `Rto-Adopt`, apresentaram maior dispersão segundo o desvio padrão, enquanto `Transfer` apresentou a maior amplitude. Além disso, os grupos `Adoption` e `Transfer` concentraram grande quantidade absoluta de outliers.
+
+Portanto, os desfechos apresentam perfis etários diferentes. `Return to Owner` se destaca como o grupo com maior dispersão geral da idade, enquanto `Transfer` se destaca pela maior distância entre idade mínima e máxima. Os gráficos `boxplot_idade_por_desfecho.png` e `desvio_padrao_idade_por_desfecho.png` foram salvos em `outputs/graficos`, e a tabela completa foi salva em `outputs/tabelas/variabilidade_idade_por_desfecho.csv`.
 
 ## Parte 7 - Correlação, padronização e conclusão
 

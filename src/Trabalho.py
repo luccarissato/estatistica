@@ -317,6 +317,77 @@ def analisar_idade_adotados_transferidos(df):
     return estatisticas
 
 
+def contar_outliers(serie):
+    q1 = serie.quantile(0.25)
+    q3 = serie.quantile(0.75)
+    iqr = q3 - q1
+    limite_inferior = q1 - 1.5 * iqr
+    limite_superior = q3 + 1.5 * iqr
+
+    return ((serie < limite_inferior) | (serie > limite_superior)).sum()
+
+
+def analisar_variabilidade_por_desfecho(df):
+    print("\n" + "=" * 80)
+    print("6. PERGUNTA 3: VARIABILIDADE DE IDADE POR DESFECHO")
+    print("=" * 80)
+
+    estatisticas = (
+        df.groupby("outcome_type")["age_years"]
+        .agg(
+            quantidade="count",
+            media="mean",
+            mediana="median",
+            q1=lambda coluna: coluna.quantile(0.25),
+            q3=lambda coluna: coluna.quantile(0.75),
+            variancia="var",
+            desvio_padrao="std",
+            minimo="min",
+            maximo="max",
+            outliers=contar_outliers,
+        )
+        .reset_index()
+    )
+    estatisticas["amplitude"] = estatisticas["maximo"] - estatisticas["minimo"]
+    estatisticas["iqr"] = estatisticas["q3"] - estatisticas["q1"]
+    estatisticas["percentual_outliers"] = (
+        estatisticas["outliers"] / estatisticas["quantidade"] * 100
+    )
+    estatisticas = estatisticas.sort_values("desvio_padrao", ascending=False)
+
+    print("\nVariabilidade da idade por desfecho:")
+    print(estatisticas)
+
+    estatisticas.to_csv(
+        OUTPUT_TABLES_DIR / "variabilidade_idade_por_desfecho.csv", index=False
+    )
+
+    ordem_desfechos = estatisticas["outcome_type"].tolist()
+
+    plt.figure(figsize=(11, 6))
+    sns.boxplot(data=df, x="outcome_type", y="age_years", order=ordem_desfechos)
+    plt.title("Variabilidade da idade por tipo de desfecho")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Idade em anos")
+    plt.xticks(rotation=45, ha="right")
+    salvar_grafico("boxplot_idade_por_desfecho.png")
+
+    plt.figure(figsize=(10, 5))
+    sns.barplot(data=estatisticas, x="outcome_type", y="desvio_padrao")
+    plt.title("Desvio padrao da idade por tipo de desfecho")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Desvio padrao da idade em anos")
+    plt.xticks(rotation=45, ha="right")
+    salvar_grafico("desvio_padrao_idade_por_desfecho.png")
+
+    print("\nArquivos gerados:")
+    print(OUTPUT_TABLES_DIR / "variabilidade_idade_por_desfecho.csv")
+    print(OUTPUT_GRAPHS_DIR / "boxplot_idade_por_desfecho.png")
+    print(OUTPUT_GRAPHS_DIR / "desvio_padrao_idade_por_desfecho.png")
+
+    return estatisticas
+
+
 def main():
     df = carregar_base()
     entender_base(df)
@@ -324,6 +395,7 @@ def main():
     analisar_estatisticas_gerais(df_processado)
     analisar_adocao_por_especie(df_processado)
     analisar_idade_adotados_transferidos(df_processado)
+    analisar_variabilidade_por_desfecho(df_processado)
 
 
 if __name__ == "__main__":
