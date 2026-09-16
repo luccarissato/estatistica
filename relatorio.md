@@ -337,9 +337,97 @@ O gráfico `proporcao_adocao_por_especie.png`, salvo em `outputs/graficos`, most
 
 ## Parte 5 - Pergunta 2: Idade de adotados vs transferidos
 
+Nesta etapa, a análise busca responder à segunda pergunta investigativa: a idade dos animais adotados difere da idade dos animais transferidos?
+
+A hipótese associada a essa pergunta é que os animais adotados apresentam uma distribuição de idade diferente dos animais transferidos, com possíveis diferenças na mediana e na concentração de animais mais jovens.
+
+Para fazer essa comparação, foram filtrados apenas os registros com `outcome_type` igual a `Adoption` ou `Transfer`. Em seguida, foram calculadas medidas de centralização, posição e dispersão da idade em anos para cada grupo.
+
+```python
+def calcular_moda(serie):
+    moda = serie.mode()
+
+    if moda.empty:
+        return pd.NA
+
+    return moda.iloc[0]
 
 
-Depois de implementar, o relatório deverá comparar a idade dos animais adotados e transferidos, verificando diferenças de média, mediana, quartis, variância, desvio padrão e amplitude.
+def analisar_idade_adotados_transferidos(df):
+    print("\n" + "=" * 80)
+    print("5. PERGUNTA 2: IDADE DE ADOTADOS VS TRANSFERIDOS")
+    print("=" * 80)
+
+    df_comparacao = df[df["outcome_type"].isin(["Adoption", "Transfer"])].copy()
+
+    estatisticas = (
+        df_comparacao.groupby("outcome_type")["age_years"]
+        .agg(
+            quantidade="count",
+            media="mean",
+            mediana="median",
+            moda=calcular_moda,
+            q1=lambda coluna: coluna.quantile(0.25),
+            q3=lambda coluna: coluna.quantile(0.75),
+            variancia="var",
+            desvio_padrao="std",
+            minimo="min",
+            maximo="max",
+        )
+        .reset_index()
+    )
+    estatisticas["amplitude"] = estatisticas["maximo"] - estatisticas["minimo"]
+
+    print("\nEstatisticas de idade para Adoption e Transfer:")
+    print(estatisticas)
+
+    estatisticas.to_csv(
+        OUTPUT_TABLES_DIR / "idade_adotados_vs_transferidos.csv", index=False
+    )
+```
+
+Os resultados obtidos foram:
+
+| Desfecho | Quantidade | Média | Mediana | Moda | Q1 | Q3 | Variância | Desvio padrão | Amplitude |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Adoption | 33.108 | 1,67 | 0,82 | 0,16 | 0,16 | 2,00 | 5,75 | 2,40 | 18,00 |
+| Transfer | 23.493 | 1,60 | 0,74 | 1,00 | 0,08 | 2,00 | 6,17 | 2,48 | 25,00 |
+
+Os animais adotados apresentaram idade média de aproximadamente 1,67 ano, enquanto os transferidos apresentaram média de aproximadamente 1,60 ano. A mediana também foi ligeiramente maior entre os adotados: 0,82 ano contra 0,74 ano nos transferidos. Isso indica que, na base analisada, os animais adotados não são necessariamente mais jovens do que os transferidos; pelo contrário, aparecem com valores centrais um pouco maiores.
+
+Por outro lado, os animais transferidos apresentaram maior variabilidade de idade. A variância foi de 6,17 no grupo `Transfer`, contra 5,75 no grupo `Adoption`. O desvio padrão também foi maior entre os transferidos, com 2,48 anos contra 2,40 anos. A amplitude reforça essa diferença: os transferidos variam de 0 a 25 anos, enquanto os adotados variam de 0 a 18 anos.
+
+Também foram gerados gráficos para visualizar melhor a comparação entre os grupos:
+
+```python
+    plt.figure(figsize=(8, 5))
+    sns.boxplot(data=df_comparacao, x="outcome_type", y="age_years")
+    plt.title("Idade dos animais: Adoption vs Transfer")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Idade em anos")
+    salvar_grafico("boxplot_idade_adoption_transfer.png")
+
+    plt.figure(figsize=(8, 5))
+    sns.histplot(
+        data=df_comparacao,
+        x="age_years",
+        hue="outcome_type",
+        bins=30,
+        element="step",
+        stat="density",
+        common_norm=False,
+    )
+    plt.title("Distribuicao da idade: Adoption vs Transfer")
+    plt.xlabel("Idade em anos")
+    plt.ylabel("Densidade")
+    salvar_grafico("histograma_idade_adoption_transfer.png")
+```
+
+A hipótese foi parcialmente sustentada. Os dados mostram que as distribuições de idade de animais adotados e transferidos não são idênticas, pois há diferenças na média, mediana, moda, variância, desvio padrão e amplitude. Porém, a parte da hipótese que sugeria maior concentração de animais mais jovens entre os adotados não foi confirmada pelos valores centrais, já que a mediana dos adotados foi ligeiramente maior do que a dos transferidos.
+
+Portanto, a idade dos animais adotados difere da idade dos animais transferidos, mas essa diferença é moderada e deve ser interpretada com cuidado. O grupo `Transfer` apresentou maior dispersão e maior presença de idades extremas, enquanto o grupo `Adoption` apresentou valores centrais um pouco mais altos.
+
+Os gráficos `boxplot_idade_adoption_transfer.png` e `histograma_idade_adoption_transfer.png` foram salvos em `outputs/graficos`, e a tabela completa foi salva em `outputs/tabelas/idade_adotados_vs_transferidos.csv`.
 
 ## Parte 6 - Pergunta 3: Variabilidade de idade por desfecho
 

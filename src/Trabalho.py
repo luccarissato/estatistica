@@ -246,12 +246,84 @@ def analisar_adocao_por_especie(df):
     return tabela
 
 
+def calcular_moda(serie):
+    moda = serie.mode()
+
+    if moda.empty:
+        return pd.NA
+
+    return moda.iloc[0]
+
+
+def analisar_idade_adotados_transferidos(df):
+    print("\n" + "=" * 80)
+    print("5. PERGUNTA 2: IDADE DE ADOTADOS VS TRANSFERIDOS")
+    print("=" * 80)
+
+    df_comparacao = df[df["outcome_type"].isin(["Adoption", "Transfer"])].copy()
+
+    estatisticas = (
+        df_comparacao.groupby("outcome_type")["age_years"]
+        .agg(
+            quantidade="count",
+            media="mean",
+            mediana="median",
+            moda=calcular_moda,
+            q1=lambda coluna: coluna.quantile(0.25),
+            q3=lambda coluna: coluna.quantile(0.75),
+            variancia="var",
+            desvio_padrao="std",
+            minimo="min",
+            maximo="max",
+        )
+        .reset_index()
+    )
+    estatisticas["amplitude"] = estatisticas["maximo"] - estatisticas["minimo"]
+
+    print("\nEstatisticas de idade para Adoption e Transfer:")
+    print(estatisticas)
+
+    estatisticas.to_csv(
+        OUTPUT_TABLES_DIR / "idade_adotados_vs_transferidos.csv", index=False
+    )
+
+    plt.figure(figsize=(8, 5))
+    sns.boxplot(data=df_comparacao, x="outcome_type", y="age_years")
+    plt.title("Idade dos animais: Adoption vs Transfer")
+    plt.xlabel("Tipo de desfecho")
+    plt.ylabel("Idade em anos")
+    salvar_grafico("boxplot_idade_adoption_transfer.png")
+
+    plt.figure(figsize=(8, 5))
+    sns.histplot(
+        data=df_comparacao,
+        x="age_years",
+        hue="outcome_type",
+        bins=30,
+        element="step",
+        stat="density",
+        common_norm=False,
+    )
+    plt.title("Distribuicao da idade: Adoption vs Transfer")
+    plt.xlabel("Idade em anos")
+    plt.ylabel("Densidade")
+    salvar_grafico("histograma_idade_adoption_transfer.png")
+
+    print("\nArquivos gerados:")
+    print(OUTPUT_TABLES_DIR / "idade_adotados_vs_transferidos.csv")
+    print(OUTPUT_GRAPHS_DIR / "boxplot_idade_adoption_transfer.png")
+    print(OUTPUT_GRAPHS_DIR / "histograma_idade_adoption_transfer.png")
+
+    return estatisticas
+
+
 def main():
     df = carregar_base()
     entender_base(df)
     df_processado = preprocessar_dados(df)
     analisar_estatisticas_gerais(df_processado)
     analisar_adocao_por_especie(df_processado)
+    analisar_idade_adotados_transferidos(df_processado)
 
 
 if __name__ == "__main__":
