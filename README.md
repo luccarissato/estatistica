@@ -1,23 +1,31 @@
-# estatistica
+# Análise Exploratória De Dados
 
+Este projeto realiza uma análise exploratória da base `aac_shelter_outcomes.csv`, com foco nos desfechos dos animais do Austin Animal Center. O objetivo é preparar os dados, gerar estatísticas e visualizações, responder às perguntas investigativas e validar as hipóteses definidas no relatório.
+
+## Como Rodar
+
+Crie o ambiente virtual:
+
+```powershell
 python -m venv venv
+```
 
+Ative o ambiente virtual:
+
+```powershell
 .\venv\Scripts\Activate.ps1
+```
 
-## pandas
-Para carregar o CSV, tratar nulos, converter colunas, agrupar dados e gerar tabelas estatísticas.
+Instale as dependências:
 
-## numpy
-Para cálculos numéricos auxiliares, especialmente quando precisar lidar com valores ausentes ou operações matemáticas.
+```powershell
+pip install -r requirements.txt
+```
 
-## matplotlib
-Para gerar gráficos e salvar imagens em outputs/graficos/.
+Execute o projeto:
 
-## seaborn
-Para gráficos estatísticos mais bonitos e simples, como boxplot, histograma e heatmap de correlação.
+```powershell
+python src\Trabalho.py
+```
 
-## scikit-learn
-Para a parte de padronização/normalização, usando StandardScaler.
-
-## python-dotenv
-Para ler configurações do arquivo .env, como o caminho do dataset.
+As tabelas geradas ficam em `outputs/tabelas/` e os gráficos ficam em `outputs/graficos/`.

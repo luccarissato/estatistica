@@ -75,6 +75,7 @@ def preprocessar_dados(df):
     print("2. PRE-PROCESSAMENTO DOS DADOS")
     print("=" * 80)
 
+    # Mantem a base original preservada durante o tratamento.
     df_processado = df.copy()
 
     print("\nValores ausentes antes do tratamento:")
@@ -84,8 +85,10 @@ def preprocessar_dados(df):
     print("\nLinhas completamente duplicadas encontradas:")
     print(duplicados)
 
+    # Remove apenas linhas completamente repetidas.
     df_processado = df_processado.drop_duplicates().copy()
 
+    # Converte colunas de data para permitir analises temporais.
     df_processado["date_of_birth"] = pd.to_datetime(
         df_processado["date_of_birth"], errors="coerce"
     )
@@ -96,6 +99,7 @@ def preprocessar_dados(df):
         df_processado["monthyear"], errors="coerce"
     )
 
+    # Transforma a idade textual em variaveis numericas comparaveis.
     df_processado["age_days"] = df_processado["age_upon_outcome"].apply(
         converter_idade_para_dias
     )
@@ -106,6 +110,7 @@ def preprocessar_dados(df):
 
     df_processado["outcome_year"] = df_processado["datetime"].dt.year
 
+    # Remove registros sem idade ou desfecho, pois essas colunas sustentam as analises.
     df_processado = df_processado.dropna(subset=["age_days", "outcome_type"]).copy()
 
     print("\nValores ausentes depois do tratamento essencial:")
