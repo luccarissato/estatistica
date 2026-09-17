@@ -11,6 +11,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import seaborn as sns
+from sklearn.preprocessing import StandardScaler
 
 DATA_PATH = BASE_DIR / "data" / "aac_shelter_outcomes.csv"
 OUTPUT_GRAPHS_DIR = BASE_DIR / "outputs" / "graficos"
@@ -388,6 +389,91 @@ def analisar_variabilidade_por_desfecho(df):
     return estatisticas
 
 
+def analisar_correlacao_padronizacao(df):
+    print("\n" + "=" * 80)
+    print("7. CORRELACAO, PADRONIZACAO E CONCLUSAO")
+    print("=" * 80)
+
+    df_analise = df.copy()
+    df_analise["is_adoption"] = (df_analise["outcome_type"] == "Adoption").astype(int)
+
+    correlacoes = pd.DataFrame(
+        {
+            "metodo": ["pearson", "spearman"],
+            "correlacao_age_years_is_adoption": [
+                df_analise["age_years"].corr(df_analise["is_adoption"], method="pearson"),
+                df_analise["age_years"].corr(
+                    df_analise["is_adoption"], method="spearman"
+                ),
+            ],
+        }
+    )
+
+    print("\nCorrelacao entre idade e ocorrencia de adocao:")
+    print(correlacoes)
+
+    correlacoes.to_csv(
+        OUTPUT_TABLES_DIR / "correlacao_idade_adocao.csv", index=False
+    )
+
+    matriz_correlacao = df_analise[
+        ["age_years", "age_days", "outcome_year", "is_adoption"]
+    ].corr(method="spearman")
+
+    plt.figure(figsize=(7, 5))
+    sns.heatmap(matriz_correlacao, annot=True, cmap="coolwarm", center=0)
+    plt.title("Correlacao de Spearman entre variaveis numericas")
+    salvar_grafico("heatmap_correlacao.png")
+
+    scaler = StandardScaler()
+    colunas_padronizacao = ["age_days", "outcome_year"]
+    colunas_padronizadas = ["age_days_std", "outcome_year_std"]
+    df_analise[colunas_padronizadas] = scaler.fit_transform(
+        df_analise[colunas_padronizacao]
+    )
+
+    resumo_padronizacao = df_analise[
+        colunas_padronizacao + colunas_padronizadas
+    ].agg(["mean", "std", "min", "max"]).T.reset_index()
+    resumo_padronizacao = resumo_padronizacao.rename(columns={"index": "variavel"})
+
+    print("\nResumo antes e depois da padronizacao:")
+    print(resumo_padronizacao)
+
+    resumo_padronizacao.to_csv(
+        OUTPUT_TABLES_DIR / "resumo_padronizacao.csv", index=False
+    )
+
+    amostra_padronizada = df_analise[
+        ["age_days", "outcome_year", "age_days_std", "outcome_year_std"]
+    ].head(20)
+    amostra_padronizada.to_csv(
+        OUTPUT_TABLES_DIR / "amostra_variaveis_padronizadas.csv", index=False
+    )
+
+    plt.figure(figsize=(8, 5))
+    sns.scatterplot(
+        data=df_analise.sample(n=min(3000, len(df_analise)), random_state=42),
+        x="age_days_std",
+        y="outcome_year_std",
+        hue="is_adoption",
+        alpha=0.5,
+    )
+    plt.title("Variaveis padronizadas: idade e ano do desfecho")
+    plt.xlabel("Idade em dias padronizada")
+    plt.ylabel("Ano do desfecho padronizado")
+    salvar_grafico("variaveis_padronizadas.png")
+
+    print("\nArquivos gerados:")
+    print(OUTPUT_TABLES_DIR / "correlacao_idade_adocao.csv")
+    print(OUTPUT_TABLES_DIR / "resumo_padronizacao.csv")
+    print(OUTPUT_TABLES_DIR / "amostra_variaveis_padronizadas.csv")
+    print(OUTPUT_GRAPHS_DIR / "heatmap_correlacao.png")
+    print(OUTPUT_GRAPHS_DIR / "variaveis_padronizadas.png")
+
+    return correlacoes, resumo_padronizacao
+
+
 def main():
     df = carregar_base()
     entender_base(df)
@@ -396,6 +482,7 @@ def main():
     analisar_adocao_por_especie(df_processado)
     analisar_idade_adotados_transferidos(df_processado)
     analisar_variabilidade_por_desfecho(df_processado)
+    analisar_correlacao_padronizacao(df_processado)
 
 
 if __name__ == "__main__":

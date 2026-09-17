@@ -523,5 +523,113 @@ Portanto, os desfechos apresentam perfis etários diferentes. `Return to Owner` 
 
 ## Parte 7 - Correlação, padronização e conclusão
 
+Nesta etapa final, foram realizadas duas exigências técnicas do projeto: a análise de correlação e a padronização de variáveis numéricas. Além disso, esta parte reúne as conclusões gerais das três perguntas investigativas.
 
-Depois de implementar, o relatório deverá apresentar a correlação entre idade e ocorrência de adoção, a padronização de variáveis numéricas em escalas diferentes e a conclusão geral validando ou rejeitando as hipóteses.
+Para a correlação, foi criada a variável `is_adoption`, que recebe valor 1 quando o desfecho do animal foi `Adoption` e valor 0 nos demais casos. Assim, foi possível comparar uma variável quantitativa, `age_years`, com a ocorrência de adoção.
+
+```python
+def analisar_correlacao_padronizacao(df):
+    print("\n" + "=" * 80)
+    print("7. CORRELACAO, PADRONIZACAO E CONCLUSAO")
+    print("=" * 80)
+
+    df_analise = df.copy()
+    df_analise["is_adoption"] = (df_analise["outcome_type"] == "Adoption").astype(int)
+
+    correlacoes = pd.DataFrame(
+        {
+            "metodo": ["pearson", "spearman"],
+            "correlacao_age_years_is_adoption": [
+                df_analise["age_years"].corr(df_analise["is_adoption"], method="pearson"),
+                df_analise["age_years"].corr(
+                    df_analise["is_adoption"], method="spearman"
+                ),
+            ],
+        }
+    )
+
+    print("\nCorrelacao entre idade e ocorrencia de adocao:")
+    print(correlacoes)
+
+    correlacoes.to_csv(
+        OUTPUT_TABLES_DIR / "correlacao_idade_adocao.csv", index=False
+    )
+```
+
+Os resultados foram:
+
+| Método | Correlação entre idade e adoção |
+|---|---:|
+| Pearson | -0,136 |
+| Spearman | -0,110 |
+
+Os dois coeficientes foram negativos e próximos de zero. Isso indica uma associação fraca entre idade e ocorrência de adoção. Em termos práticos, animais mais velhos tendem a aparecer ligeiramente menos associados ao desfecho de adoção, mas essa relação é fraca e não deve ser interpretada como causalidade.
+
+Também foi gerado um mapa de calor com a correlação de Spearman entre variáveis numéricas:
+
+```python
+    matriz_correlacao = df_analise[
+        ["age_years", "age_days", "outcome_year", "is_adoption"]
+    ].corr(method="spearman")
+
+    plt.figure(figsize=(7, 5))
+    sns.heatmap(matriz_correlacao, annot=True, cmap="coolwarm", center=0)
+    plt.title("Correlacao de Spearman entre variaveis numericas")
+    salvar_grafico("heatmap_correlacao.png")
+```
+
+Para a padronização, foram escolhidas as variáveis `age_days` e `outcome_year`. Essa escolha foi feita porque elas estão em escalas muito diferentes: `age_days` varia de 0 a 9.125 dias, enquanto `outcome_year` varia de 2013 a 2018. A padronização coloca essas variáveis em uma escala comparável, com média próxima de 0 e desvio padrão próximo de 1.
+
+```python
+    scaler = StandardScaler()
+    colunas_padronizacao = ["age_days", "outcome_year"]
+    colunas_padronizadas = ["age_days_std", "outcome_year_std"]
+    df_analise[colunas_padronizadas] = scaler.fit_transform(
+        df_analise[colunas_padronizacao]
+    )
+
+    resumo_padronizacao = df_analise[
+        colunas_padronizacao + colunas_padronizadas
+    ].agg(["mean", "std", "min", "max"]).T.reset_index()
+    resumo_padronizacao = resumo_padronizacao.rename(columns={"index": "variavel"})
+```
+
+O resumo antes e depois da padronização foi:
+
+| Variável | Média | Desvio padrão | Mínimo | Máximo |
+|---|---:|---:|---:|---:|
+| age_days | 778,03 | 1057,21 | 0,00 | 9125,00 |
+| outcome_year | 2015,37 | 1,26 | 2013,00 | 2018,00 |
+| age_days_std | 0,00 | 1,00 | -0,74 | 7,90 |
+| outcome_year_std | 0,00 | 1,00 | -1,87 | 2,08 |
+
+Após a transformação, as variáveis padronizadas ficaram com média aproximadamente igual a 0 e desvio padrão aproximadamente igual a 1. Isso confirma que a padronização foi aplicada corretamente.
+
+Também foi gerado um gráfico de dispersão com as variáveis padronizadas:
+
+```python
+    plt.figure(figsize=(8, 5))
+    sns.scatterplot(
+        data=df_analise.sample(n=min(3000, len(df_analise)), random_state=42),
+        x="age_days_std",
+        y="outcome_year_std",
+        hue="is_adoption",
+        alpha=0.5,
+    )
+    plt.title("Variaveis padronizadas: idade e ano do desfecho")
+    plt.xlabel("Idade em dias padronizada")
+    plt.ylabel("Ano do desfecho padronizado")
+    salvar_grafico("variaveis_padronizadas.png")
+```
+
+Os arquivos gerados nesta etapa foram `correlacao_idade_adocao.csv`, `resumo_padronizacao.csv` e `amostra_variaveis_padronizadas.csv`, salvos em `outputs/tabelas`. Os gráficos `heatmap_correlacao.png` e `variaveis_padronizadas.png` foram salvos em `outputs/graficos`.
+
+### Conclusão geral
+
+A primeira pergunta investigativa buscava identificar qual espécie apresenta maior proporção de adoções. Os dados mostraram que cães tiveram proporção de adoção ligeiramente maior do que gatos, com 45,33% contra 43,28%. Portanto, a hipótese de que a proporção de adoções difere entre cães e gatos foi sustentada.
+
+A segunda pergunta comparou a idade dos animais adotados e transferidos. Os resultados mostraram diferenças entre os grupos, mas a hipótese foi apenas parcialmente sustentada. As distribuições não são idênticas, porém os adotados não apresentaram concentração mais forte de animais jovens; na verdade, tiveram média e mediana ligeiramente maiores do que os transferidos. Já o grupo `Transfer` apresentou maior dispersão e maior amplitude.
+
+A terceira pergunta analisou a variabilidade da idade por tipo de desfecho. A hipótese foi sustentada, pois os desfechos apresentaram níveis diferentes de dispersão. `Return to Owner` teve maior desvio padrão e maior intervalo interquartil, enquanto `Transfer` apresentou a maior amplitude. Além disso, `Adoption` e `Transfer` concentraram grande quantidade absoluta de outliers.
+
+De forma geral, a análise indica que as características dos animais, principalmente espécie e idade, ajudam a descrever diferenças importantes entre os desfechos do Austin Animal Center. A idade apresentou relação negativa fraca com a ocorrência de adoção, sugerindo que animais mais velhos tendem a ser adotados em proporção ligeiramente menor, mas essa associação é pequena. Assim, os resultados respondem às perguntas investigativas, cumprem os requisitos estatísticos do projeto e mostram que os padrões de saída do abrigo variam conforme o perfil dos animais.
